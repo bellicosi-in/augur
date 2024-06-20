@@ -69,35 +69,43 @@ class Net(nn.Module):
         return F.tanh(x)
     
 
-chess_dataset = ChessDataset()
-print(chess_dataset.X)
-train_loader = torch.utils.data.DataLoader(chess_dataset, batch_size = 256, shuffle = True)
-model = Net()
-optimizer = optim.Adam(model.parameters(),lr = 0.1)
-floss = nn.MSELoss()
+if __name__ == "__main__":
+    
 
-device = (
-     "cpu"
-)
+    chess_dataset = ChessDataset()
+    # print(chess_dataset.X)
+    train_loader = torch.utils.data.DataLoader(chess_dataset, batch_size = 256, shuffle = True)
+    model = Net()
+    optimizer = optim.Adam(model.parameters())
+    floss = nn.MSELoss()
 
-model.train()
+    device = (
+        "cpu"
+    )
 
-for epoch in range(100):
-    all_loss = 0
-    for batch_idx, (data,target) in enumerate(train_loader):
-        target = target.unsqueeze(-1)
-        data, target = data.to(device), target.to(device)
-        data = data.float()
-        # data = data.reshape((1,256,5,8))
-        target = target.float()
-        
-        optimizer.zero_grad()
-        output = model(data)
-        
-        loss = floss(output,target)
-        loss.backward()
-        optimizer.step()
 
-        all_loss += loss.item()
-    print(f"{epoch}, {all_loss}")
+    model.train()
+
+    for epoch in range(50):
+        all_loss = 0
+        num_loss = 0
+        for batch_idx, (data,target) in enumerate(train_loader):
+            target = target.unsqueeze(-1)
+            data, target = data.to(device), target.to(device)
+            data = data.float()
+            # data = data.reshape((1,256,5,8))
+            target = target.float()
+            
+            optimizer.zero_grad()
+            output = model(data)
+            
+            loss = floss(output,target)
+            loss.backward()
+            optimizer.step()
+
+            all_loss += loss.item()
+            num_loss += 1
+        print(f"{epoch}, {all_loss/num_loss}")
+
+    torch.save(model.state_dict(),"nets/value.pth")
 
