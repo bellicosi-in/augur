@@ -13,7 +13,7 @@ def get_dataset(num_samples = None):
             try:
                 game = chess.pgn.read_game(pgn)
             except Exception:
-                break
+               continue 
             
             # gn += 1
             result = game.headers['Result']

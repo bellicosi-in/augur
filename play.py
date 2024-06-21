@@ -5,7 +5,7 @@ import chess.svg
 import time
 import traceback
 import base64
-
+import os
 
 
 class Valuator(object):
@@ -20,6 +20,64 @@ class Valuator(object):
         return float(output.data[0][0])
     
 
+
+# MINIMAX ALGORITHM
+MAXVAL = 10000
+class ClassicValuator(object):
+    values = {chess.PAWN : 1,
+              chess.KNIGHT : 3,
+              chess.BISHOP : 3,
+              chess.ROOK: 5,
+              chess.QUEEN: 9,
+              chess.KING: 0
+              }
+    def __init__(self):
+        pass
+
+# apparently a simple value function based on pieces
+    def __call__(self,s):
+        if s.board.is_variant_win():
+            if s.turn == chess.WHITE:
+                return MAXVAL
+            else:
+                return -MAXVAL
+            
+            if s.board.is_variant_loss():
+                if s.turn == chess.WHITE:
+                    return -MAXVAL
+                else:
+                    return MAXVAL
+        val = 0
+        pm = s.board.piece_map()
+        for x in pm:
+            tval = self.values[pm[x].piece_type]
+            if pm[x].color == chess.WHITE:
+                val += tval
+            else:
+                val -= tval
+        return val
+        
+
+def computer_minimax(s,v, depth = 2):
+    if depth == 0 or s.board.is_game_over():
+        return v(s)
+    turn = s.board.turn
+    if turn == chess.WHITE:
+        ret = -MAXVAL
+    else:
+        ret = MAXVAL
+    for e in s.edges():
+        s.board.push(e)
+        tval = computer_minimax(s,v,depth-1)
+        if turn == chess.WHITE:
+            ret = max(ret,tval)
+        else:
+            ret = min(ret,tval)
+        s.board.pop()
+    return ret
+        
+
+
 def explore_leaves(s,v):
     ret = []
     for e in s.edges():
@@ -28,7 +86,7 @@ def explore_leaves(s,v):
         s.board.pop()
     return ret
 
-v = Valuator()
+v = ClassicValuator()
 s = State()
 
 def to_svg(s):
@@ -40,16 +98,9 @@ app = Flask(__name__)
 
 @app.route("/")
 def hello():
-    ret = '<html><head>'
-    ret += '<style>input{ font-size: 30px;} button {font-size: 30px;}</style>'
-    ret += '</head><body>'
-    ret += '<img width = 600 src = "/board.svg?%f"></img><br/>' %time.time()
-    ret += '<form action = "/move"><input name = "move" type = "text"></input><input type = "submit" value = "Move"></form><br/>'
-    return ret
+   ret = open("index.html").read()
+   return ret.replace('start',s.board.fen()) 
 
-@app.route("/board.svg")
-def board():
-    return Response(chess.svg.board(board = s.board), mimetype = 'image/svg+xml')
 
 def computer_move(s,v):
     move = sorted(explore_leaves(s,v), key = lambda x:x[0], reverse = s.board.turn)
@@ -84,12 +135,30 @@ def move():
                 computer_move(s,v)
             except Exception:
                 traceback.print_exc()
+            response = app.response_class(
+                response = s.board.fen(),
+                status = 200
+            )
+            return response
         else:
             print("Game is over!")
+            response = app.response_class(
+                response = "game over",
+                status = 200
+            )
+            return response
+        print("hello ran")
         return hello()
 
 if __name__ == "__main__":
-    app.run(debug = True)
+    if os.getenv("SELFPLAY") is not None:
+        s= State()
+        while not s.board.is_game_over():
+            computer_move(s,v)
+            print(s.board)
+        print(s.board.result())
+    else:
+        app.run(debug = True)
 
 
 
