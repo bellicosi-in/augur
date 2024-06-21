@@ -4,6 +4,8 @@ from train import Net
 import chess.svg
 import time
 import traceback
+import base64
+
 
 
 class Valuator(object):
@@ -29,6 +31,9 @@ def explore_leaves(s,v):
 v = Valuator()
 s = State()
 
+def to_svg(s):
+    return base64.b64encode(chess.svg.board(board = s.board).encode('utf-8')).decode('utf-8')
+
 from flask import Flask,Response,request
 
 app = Flask(__name__)
@@ -46,10 +51,27 @@ def hello():
 def board():
     return Response(chess.svg.board(board = s.board), mimetype = 'image/svg+xml')
 
-def computer_move():
-    move = sorted(explore_leaves(s,v), key = lambda x:x[0], reverse = s.board.turn)[0]
-    print(move)
-    s.board.push(move[1])
+def computer_move(s,v):
+    move = sorted(explore_leaves(s,v), key = lambda x:x[0], reverse = s.board.turn)
+    print("top 3")
+    for i, m in enumerate(move[0:3]):
+        print(" ",m)
+    s.board.push(move[0][1])
+
+
+@app.route("/selfplay")
+def selfplay():
+    s = State()
+
+    ret = '<html><head>'
+    # selfplay
+    while not s.board.is_game_over():
+        computer_move(s,v)
+        ret += '<img width=600 height=600 src="data:image/svg+xml;base64,%s"></img><br/>' % to_svg(s)
+    print(s.board.result())
+
+    return ret
+
 
 @app.route("/move")
 def move():
@@ -59,7 +81,7 @@ def move():
             print("human moves",move)
             try:
                 s.board.push_san(move)
-                computer_move()
+                computer_move(s,v)
             except Exception:
                 traceback.print_exc()
         else:
